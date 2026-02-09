@@ -1,0 +1,283 @@
+# Helm Chart默认值配置
+# Helm Chart Default Values Configuration
+
+# 全局配置 / Global Configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "standard"
+
+# 后端配置 / Backend Configuration
+backend:
+  image:
+    repository: knowledge-platform/backend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 3
+  
+  service:
+    type: ClusterIP
+    port: 8000
+    annotations: {}
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  
+  # 自动扩缩容配置 / Autoscaling Configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  
+  # 健康检查配置 / Health Check Configuration
+  livenessProbe:
+    httpGet:
+      path: /status
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    httpGet:
+      path: /api/v1/health
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# 前端配置 / Frontend Configuration
+frontend:
+  image:
+    repository: knowledge-platform/frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2
+  
+  service:
+    type: ClusterIP
+    port: 80
+    annotations: {}
+  
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  
+  # 自动扩缩容配置 / Autoscaling Configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# 数据库配置 / Database Configuration
+database:
+  # 数据库类型: sqlite, mysql, postgresql
+  # Database type: sqlite, mysql, postgresql
+  type: mysql
+  
+  # MySQL配置 / MySQL Configuration
+  mysql:
+    enabled: true
+    image:
+      repository: mysql
+      tag: "8.0"
+    
+    auth:
+      rootPassword: "rootpassword123"
+      database: "knowledge_platform"
+      username: "app_user"
+      password: "app_password"
+    
+    primary:
+      persistence:
+        enabled: true
+        size: 20Gi
+        storageClass: ""
+    
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+  
+  # PostgreSQL配置 / PostgreSQL Configuration
+  postgresql:
+    enabled: false
+    image:
+      repository: postgres
+      tag: "14"
+    
+    auth:
+      postgresPassword: "rootpassword123"
+      database: "knowledge_platform"
+      username: "app_user"
+      password: "app_password"
+    
+    primary:
+      persistence:
+        enabled: true
+        size: 20Gi
+        storageClass: ""
+
+# Redis配置 / Redis Configuration
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  
+  auth:
+    enabled: true
+    password: "redis_password"
+  
+  master:
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClass: ""
+  
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# 存储配置 / Storage Configuration
+persistence:
+  uploads:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+    accessMode: ReadWriteMany
+  
+  logs:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+    accessMode: ReadWriteMany
+
+# Ingress配置 / Ingress Configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  
+  hosts:
+    - host: knowledge-platform.local
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /ws
+          pathType: Prefix
+          service: backend
+        - path: /
+          pathType: Prefix
+          service: frontend
+    - host: api.knowledge-platform.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: backend
+  
+  tls:
+    - secretName: knowledge-platform-tls
+      hosts:
+        - knowledge-platform.local
+        - api.knowledge-platform.local
+
+# 应用配置 / Application Configuration
+config:
+  # 环境配置 / Environment Configuration
+  environment: production
+  debug: false
+  
+  # 安全配置 / Security Configuration
+  secretKey: "your-secret-key-change-in-production"
+  jwtSecret: "jwt-secret-key-for-production"
+  
+  # CORS配置 / CORS Configuration
+  corsOrigins: "https://knowledge-platform.local,https://www.knowledge-platform.local"
+  
+  # 文件上传配置 / File Upload Configuration
+  maxFileSize: "10485760"  # 10MB
+  uploadPath: "/app/uploads"
+  
+  # 日志配置 / Logging Configuration
+  logLevel: "INFO"
+  logFormat: "json"
+
+# 监控配置 / Monitoring Configuration
+monitoring:
+  # Prometheus监控 / Prometheus Monitoring
+  prometheus:
+    enabled: false
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      path: /metrics
+  
+  # Grafana仪表板 / Grafana Dashboard
+  grafana:
+    enabled: false
+    dashboards:
+      enabled: false
+
+# 网络策略 / Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+  egress:
+    enabled: true
+
+# 服务账户 / Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod安全策略 / Pod Security Policy
+podSecurityPolicy:
+  enabled: false
+
+# 节点选择器 / Node Selector
+nodeSelector: {}
+
+# 容忍度 / Tolerations
+tolerations: []
+
+# 亲和性 / Affinity
+affinity: {}
+
+# Pod中断预算 / Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

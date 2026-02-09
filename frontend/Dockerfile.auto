@@ -1,0 +1,74 @@
+# 自动配置的前端Dockerfile
+# Auto-configured Frontend Dockerfile
+
+# 构建阶段
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+# 复制package文件
+COPY package*.json ./
+
+# 安装依赖
+RUN npm ci --only=production
+
+# 复制源代码
+COPY . .
+
+# 设置环境变量
+ENV REACT_APP_API_URL=http://localhost:8000
+ENV REACT_APP_WS_URL=ws://localhost:8000
+ENV GENERATE_SOURCEMAP=false
+
+# 构建应用
+RUN npm run build
+
+# 生产阶段
+FROM nginx:alpine
+
+# 复制构建结果
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# 创建自动配置的nginx配置
+RUN echo 'server {\n\
+    listen 80;\n\
+    server_name localhost;\n\
+    root /usr/share/nginx/html;\n\
+    index index.html;\n\
+    \n\
+    # 启用gzip压缩\n\
+    gzip on;\n\
+    gzip_vary on;\n\
+    gzip_min_length 1024;\n\
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;\n\
+    \n\
+    # 静态资源缓存\n\
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {\n\
+        expires 1y;\n\
+        add_header Cache-Control "public, immutable";\n\
+    }\n\
+    \n\
+    # SPA路由支持\n\
+    location / {\n\
+        try_files $uri $uri/ /index.html;\n\
+        add_header Cache-Control "no-cache";\n\
+    }\n\
+    \n\
+    # 健康检查\n\
+    location /health {\n\
+        access_log off;\n\
+        return 200 "healthy";\n\
+        add_header Content-Type text/plain;\n\
+    }\n\
+}\n\
+' > /etc/nginx/conf.d/default.conf
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1
+
+# 暴露端口
+EXPOSE 80
+
+# 启动nginx
+CMD ["nginx", "-g", "daemon off;"]

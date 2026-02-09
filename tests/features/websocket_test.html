@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .connecting { background-color: #fff3cd; color: #856404; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .danger { background-color: #dc3545; }
+        .danger:hover { background-color: #c82333; }
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f8f9fa;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .message {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .sent { background-color: #e7f3ff; }
+        .received { background-color: #fff2e7; }
+        .error { background-color: #ffe7e7; }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .stat-item {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔗 WebSocket 实时通信测试</h1>
+    
+    <div class="container">
+        <h2>连接状态</h2>
+        <div id="status" class="status disconnected">未连接</div>
+        <div class="stats">
+            <div class="stat-item">
+                <strong>总连接数</strong><br>
+                <span id="totalConnections">0</span>
+            </div>
+            <div class="stat-item">
+                <strong>在线用户</strong><br>
+                <span id="totalUsers">0</span>
+            </div>
+            <div class="stat-item">
+                <strong>房间数</strong><br>
+                <span id="totalRooms">0</span>
+            </div>
+            <div class="stat-item">
+                <strong>消息数</strong><br>
+                <span id="messageCount">0</span>
+            </div>
+        </div>
+        <div style="margin-top: 10px;">
+            <button onclick="connect()">连接</button>
+            <button onclick="disconnect()" class="danger">断开</button>
+            <button onclick="getStats()">获取统计</button>
+            <button onclick="sendPing()">发送Ping</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>消息发送</h2>
+        <div>
+            <select id="messageType">
+                <option value="ping">Ping</option>
+                <option value="subscribe">订阅房间</option>
+                <option value="unsubscribe">取消订阅</option>
+                <option value="get_stats">获取统计</option>
+                <option value="custom">自定义</option>
+            </select>
+            <input type="text" id="roomName" placeholder="房间名称 (可选)" />
+            <button onclick="sendMessage()">发送消息</button>
+        </div>
+        <div style="margin-top: 10px;">
+            <button onclick="subscribeNotifications()">订阅通知</button>
+            <button onclick="subscribeSync()">订阅同步</button>
+            <button onclick="sendTestNotification()">发送测试通知</button>
+            <button onclick="clearMessages()">清空消息</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>消息历史</h2>
+        <div id="messages" class="messages"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageCount = 0;
+        const userId = 'test-user-' + Math.random().toString(36).substr(2, 9);
+        const token = 'test-token-' + Math.random().toString(36).substr(2, 9);
+
+        function updateStatus(status, className) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = status;
+            statusEl.className = 'status ' + className;
+        }
+
+        function addMessage(content, type = 'received') {
+            const messagesEl = document.getElementById('messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message ' + type;
+            messageEl.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${content}`;
+            messagesEl.appendChild(messageEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            
+            messageCount++;
+            document.getElementById('messageCount').textContent = messageCount;
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('WebSocket 已经连接', 'error');
+                return;
+            }
+
+            const wsUrl = `ws://localhost:8000/api/v1/ws/${userId}?token=${token}`;
+            addMessage(`连接到: ${wsUrl}`, 'sent');
+            updateStatus('连接中...', 'connecting');
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function(event) {
+                updateStatus('已连接', 'connected');
+                addMessage('WebSocket 连接成功!', 'received');
+                getStats();
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    addMessage(`收到消息: ${JSON.stringify(data, null, 2)}`, 'received');
+                    
+                    // Handle specific message types
+                    if (data.type === 'stats') {
+                        updateStats(data.data);
+                    } else if (data.type === 'notification') {
+                        addMessage(`🔔 通知: ${data.data.title}`, 'received');
+                    }
+                } catch (e) {
+                    addMessage(`收到原始消息: ${event.data}`, 'received');
+                }
+            };
+
+            ws.onclose = function(event) {
+                updateStatus('已断开', 'disconnected');
+                addMessage(`WebSocket 连接关闭: ${event.code} - ${event.reason}`, 'error');
+            };
+
+            ws.onerror = function(error) {
+                updateStatus('连接错误', 'disconnected');
+                addMessage(`WebSocket 错误: ${error}`, 'error');
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('WebSocket 未连接', 'error');
+                return;
+            }
+
+            const messageType = document.getElementById('messageType').value;
+            const roomName = document.getElementById('roomName').value;
+
+            const message = {
+                type: messageType,
+                timestamp: new Date().toISOString()
+            };
+
+            if (roomName && (messageType === 'subscribe' || messageType === 'unsubscribe')) {
+                message.room = roomName;
+            }
+
+            ws.send(JSON.stringify(message));
+            addMessage(`发送消息: ${JSON.stringify(message, null, 2)}`, 'sent');
+        }
+
+        function sendPing() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('WebSocket 未连接', 'error');
+                return;
+            }
+
+            const message = { type: 'ping', timestamp: new Date().toISOString() };
+            ws.send(JSON.stringify(message));
+            addMessage(`发送 Ping: ${JSON.stringify(message)}`, 'sent');
+        }
+
+        function getStats() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('WebSocket 未连接', 'error');
+                return;
+            }
+
+            const message = { type: 'get_stats' };
+            ws.send(JSON.stringify(message));
+            addMessage('请求统计信息', 'sent');
+        }
+
+        function subscribeNotifications() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('WebSocket 未连接', 'error');
+                return;
+            }
+
+            const message = { type: 'subscribe', room: 'notifications' };
+            ws.send(JSON.stringify(message));
+            addMessage('订阅通知房间', 'sent');
+        }
+
+        function subscribeSync() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('WebSocket 未连接', 'error');
+                return;
+            }
+
+            const message = { type: 'subscribe', room: 'sync_updates' };
+            ws.send(JSON.stringify(message));
+            addMessage('订阅同步房间', 'sent');
+        }
+
+        function sendTestNotification() {
+            fetch('/api/v1/notifications/demo', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                addMessage(`测试通知发送结果: ${JSON.stringify(data)}`, 'sent');
+            })
+            .catch(error => {
+                addMessage(`发送测试通知失败: ${error}`, 'error');
+            });
+        }
+
+        function updateStats(stats) {
+            document.getElementById('totalConnections').textContent = stats.total_connections || 0;
+            document.getElementById('totalUsers').textContent = stats.total_users || 0;
+            document.getElementById('totalRooms').textContent = stats.total_rooms || 0;
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+            messageCount = 0;
+            document.getElementById('messageCount').textContent = messageCount;
+        }
+
+        // Auto-connect on page load
+        window.onload = function() {
+            addMessage('页面加载完成，准备连接WebSocket...', 'received');
+            setTimeout(connect, 1000);
+        };
+
+        // Clean up on page unload
+        window.onbeforeunload = function() {
+            if (ws) {
+                ws.close();
+            }
+        };
+    </script>
+</body>
+</html>

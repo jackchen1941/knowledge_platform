@@ -1,0 +1,11 @@
+# Kubernetes命名空间配置
+# Kubernetes Namespace Configuration
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: knowledge-platform
+  labels:
+    name: knowledge-platform
+    environment: production
+    app: knowledge-management-platform

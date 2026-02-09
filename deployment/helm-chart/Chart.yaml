@@ -1,0 +1,24 @@
+# Helm Chart元数据
+# Helm Chart Metadata
+
+apiVersion: v2
+name: knowledge-platform
+description: A comprehensive knowledge management platform with real-time features
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://knowledge-platform.com
+sources:
+  - https://github.com/knowledge-platform/knowledge-management-platform
+maintainers:
+  - name: Knowledge Platform Team
+    email: team@knowledge-platform.com
+keywords:
+  - knowledge-management
+  - fastapi
+  - react
+  - websocket
+  - real-time
+annotations:
+  category: Productivity
+  licenses: MIT
