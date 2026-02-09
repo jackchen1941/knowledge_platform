@@ -179,6 +179,8 @@ python tests/security/test_security_comprehensive.py
 
 - **[快速开始指南](README_QUICKSTART.md)** - 一键部署指南
 - **[部署指南](DEPLOYMENT_GUIDE.md)** - 详细部署文档
+- **[快速测试部署](docs/QUICK_TEST_DEPLOYMENT.md)** - 在不同平台快速测试
+- **[Git问题解决](docs/GIT_TROUBLESHOOTING.md)** - Git常见问题和解决方案
 - **[API文档](http://localhost:8000/docs)** - 自动生成的API文档
 - **[完整技术文档](docs/PROJECT_COMPLETE_DOCUMENTATION.md)** - 详细技术文档
 - **[项目结构说明](PROJECT_STRUCTURE.md)** - 项目结构和目录说明
