@@ -37,19 +37,37 @@
 
 ## 🚀 快速开始 / Quick Start
 
-### 方式一：一键自动部署 (推荐)
+### 方式一：使用预构建 Docker 镜像 (最快速 🚀)
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/knowledge-management-platform.git
-cd knowledge-management-platform
+git clone https://github.com/jackchen1941/knowledge_platform.git
+cd knowledge_platform
+
+# 使用预构建镜像启动 (无需构建，直接运行)
+docker-compose -f docker-compose.ghcr.yml up -d
+
+# 查看日志
+docker-compose -f docker-compose.ghcr.yml logs -f
+```
+
+**镜像地址**:
+- Backend: `ghcr.io/jackchen1941/knowledge-platform-backend:latest`
+- Frontend: `ghcr.io/jackchen1941/knowledge-platform-frontend:latest`
+
+### 方式二：一键自动部署
+
+```bash
+# 克隆项目
+git clone https://github.com/jackchen1941/knowledge_platform.git
+cd knowledge_platform
 
 # 一键启动 (自动检测环境并配置)
 chmod +x quick-start.sh
 ./quick-start.sh
 ```
 
-### 方式二：Docker部署
+### 方式三：Docker 本地构建
 
 ```bash
 # 完全自动化部署 (包含所有服务)
@@ -59,12 +77,15 @@ docker-compose -f deployment/docker-compose.auto.yml up -d
 docker-compose -f deployment/docker-compose.mysql.yml up -d
 ```
 
-### 方式三：本地开发
+### 方式四：本地开发环境
 
 ```bash
-# 后端 (自动配置)
+# 后端 (使用 Python venv)
 cd backend
-python app/main_auto.py
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 
 # 前端
 cd frontend
@@ -179,6 +200,7 @@ python tests/security/test_security_comprehensive.py
 
 - **[快速开始指南](README_QUICKSTART.md)** - 一键部署指南
 - **[部署指南](DEPLOYMENT_GUIDE.md)** - 详细部署文档
+- **[Docker镜像指南](DOCKER_IMAGE_GUIDE.md)** - Docker镜像构建和使用 🐳
 - **[快速测试部署](docs/QUICK_TEST_DEPLOYMENT.md)** - 在不同平台快速测试
 - **[Git问题解决](docs/GIT_TROUBLESHOOTING.md)** - Git常见问题和解决方案
 - **[API文档](http://localhost:8000/docs)** - 自动生成的API文档
@@ -187,12 +209,52 @@ python tests/security/test_security_comprehensive.py
 - **[实现细节文档](docs/implementation/)** - 各功能模块实现细节
 - **[项目完成报告](docs/progress/FINAL_PROJECT_COMPLETION_REPORT.md)** - 完整项目报告
 
-## 🔄 版本更新 / Version Updates
+## � Docker 镜像 / Docker Images
+
+### 预构建镜像 / Pre-built Images
+
+我们提供了预构建的 Docker 镜像，可以直接使用：
+
+```bash
+# 拉取镜像
+docker pull ghcr.io/jackchen1941/knowledge-platform-backend:latest
+docker pull ghcr.io/jackchen1941/knowledge-platform-frontend:latest
+
+# 使用 Docker Compose 启动
+docker-compose -f docker-compose.ghcr.yml up -d
+```
+
+### 构建自己的镜像 / Build Your Own Images
+
+```bash
+# 构建镜像
+./build-images.sh 1.0.0
+
+# 推送到 GitHub Container Registry
+./push-images.sh 1.0.0
+
+# 或一键构建并推送
+./build-and-push.sh 1.0.0
+```
+
+详细说明请查看 [Docker镜像指南](DOCKER_IMAGE_GUIDE.md)
+
+## � 版本更新 / Version Updates
 
 ### 当前版本 / Current Version: v1.0.0
 
 ### 更新方式 / Update Method
 
+**使用预构建镜像更新：**
+```bash
+# 拉取最新镜像
+docker-compose -f docker-compose.ghcr.yml pull
+
+# 重启服务
+docker-compose -f docker-compose.ghcr.yml up -d
+```
+
+**从源码更新：**
 ```bash
 # 拉取最新版本
 git pull origin main
@@ -220,13 +282,12 @@ docker-compose -f deployment/docker-compose.auto.yml up -d --build
 
 ## 📞 支持 / Support
 
-- **📧 邮件支持**: support@knowledge-platform.com
-- **🐛 问题报告**: [GitHub Issues](https://github.com/your-username/knowledge-management-platform/issues)
-- **💬 讨论**: [GitHub Discussions](https://github.com/your-username/knowledge-management-platform/discussions)
-- **📖 文档**: [在线文档](https://docs.knowledge-platform.com)
+- **🐛 问题报告**: [GitHub Issues](https://github.com/jackchen1941/knowledge_platform/issues)
+- **💬 讨论**: [GitHub Discussions](https://github.com/jackchen1941/knowledge_platform/discussions)
+- **📦 容器镜像**: [GitHub Packages](https://github.com/jackchen1941?tab=packages)
+- **📖 在线文档**: [项目文档](https://github.com/jackchen1941/knowledge_platform/tree/main/docs)
 
 ## 🌟 Star History
-
 [![Star History Chart](https://api.star-history.com/svg?repos=your-username/knowledge-management-platform&type=Date)](https://star-history.com/#your-username/knowledge-management-platform&Date)
 
 ## 🎯 路线图 / Roadmap

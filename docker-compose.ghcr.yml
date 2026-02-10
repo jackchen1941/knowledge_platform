@@ -1,0 +1,197 @@
+version: '3.8'
+
+# Knowledge Platform - Docker Compose with GitHub Container Registry Images
+# 知识管理平台 - 使用 GitHub 容器镜像的 Docker Compose 配置
+
+services:
+  # Backend API Service
+  backend:
+    image: ghcr.io/jackchen1941/knowledge-platform-backend:latest
+    container_name: kmp-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Database Configuration
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/knowledge_platform
+      
+      # Redis Configuration
+      - REDIS_URL=redis://redis:6379/0
+      
+      # Elasticsearch Configuration
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      
+      # Application Settings
+      - DEBUG=false
+      - SECRET_KEY=your-secret-key-change-in-production
+      - ALLOWED_HOSTS=*
+      
+      # CORS Settings
+      - CORS_ORIGINS=http://localhost:3000,http://localhost
+      
+      # JWT Settings
+      - JWT_SECRET_KEY=your-jwt-secret-key-change-in-production
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      
+      # File Upload Settings
+      - MAX_UPLOAD_SIZE=10485760
+      - UPLOAD_DIR=/app/uploads
+    depends_on:
+      - postgres
+      - redis
+      - elasticsearch
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - kmp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Service
+  frontend:
+    image: ghcr.io/jackchen1941/knowledge-platform-frontend:latest
+    container_name: kmp-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - kmp-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: kmp-postgres
+    environment:
+      - POSTGRES_DB=knowledge_platform
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deployment/mysql/auto-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - kmp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: kmp-redis
+    command: redis-server --appendonly yes --requirepass ""
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - kmp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Elasticsearch Search Engine
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: kmp-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    restart: unless-stopped
+    networks:
+      - kmp-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Celery Worker (Background Tasks)
+  celery-worker:
+    image: ghcr.io/jackchen1941/knowledge-platform-backend:latest
+    container_name: kmp-celery-worker
+    command: celery -A app.core.celery worker --loglevel=info --concurrency=4
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/knowledge_platform
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - kmp-network
+
+  # Celery Beat (Scheduled Tasks)
+  celery-beat:
+    image: ghcr.io/jackchen1941/knowledge-platform-backend:latest
+    container_name: kmp-celery-beat
+    command: celery -A app.core.celery beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/knowledge_platform
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - kmp-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+networks:
+  kmp-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
