@@ -5,6 +5,69 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.0] - 2026-02-10
+
+### 🎉 重大更新 / Major Update
+
+#### ✨ 新增功能 / Added Features
+
+##### 🌐 URL导入功能 / URL Import Feature
+- **通用URL导入** - 支持从任何公开网页导入文章
+- **智能内容提取** - 自动识别标题、正文、作者、发布时间
+- **HTML转Markdown** - 自动转换并保留格式
+- **批量导入** - 支持一次导入多个URL
+- **前端界面** - 友好的导入管理界面
+- **支持平台**:
+  - ✅ CSDN博客
+  - ✅ 知乎文章
+  - ✅ 掘金文章
+  - ✅ 简书文章
+  - ✅ Medium文章
+  - ✅ GitHub README
+  - ✅ 个人博客
+  - ✅ 技术文档网站
+
+##### 📱 多设备同步增强 / Multi-device Sync Enhancement
+- **设备管理** - 注册、查看、删除设备
+- **增量同步** - 只同步变更的数据
+- **冲突解决** - 智能检测和解决编辑冲突
+- **同步统计** - 详细的同步日志和统计
+- **实时同步** - WebSocket实时通知
+
+##### 🎨 Markdown渲染优化 / Markdown Rendering Optimization
+- **完整样式支持** - 标题、代码块、表格、引用等
+- **语法高亮** - 代码块自动高亮
+- **响应式图片** - 图片自适应宽度
+- **美观排版** - 合理的间距和字体
+
+#### 🐛 修复 / Bug Fixes
+- 修复知识创建和更新的SQLAlchemy异步问题
+- 修复导出功能的中文文件名编码问题
+- 修复前端API路径重复问题
+- 修复表单冲突导致导入无反应的问题
+- 修复Markdown显示为纯文本的问题
+
+#### 🔧 改进 / Improvements
+- **HTML转Markdown** - 重写转换器，使用递归处理保留格式
+- **错误处理** - 更详细的错误信息和日志
+- **请求头优化** - 模拟真实浏览器避免反爬虫
+- **超时设置** - 30秒总超时，10秒连接超时
+- **内容验证** - 确保提取到足够的内容
+
+#### 📚 文档更新 / Documentation Updates
+- 新增 `URL_IMPORT_GUIDE.md` - URL导入详细指南
+- 新增 `URL_IMPORT_TROUBLESHOOTING.md` - 故障排查指南
+- 新增 `MULTI_DEVICE_AND_IMPORT_GUIDE.md` - 多设备同步和导入完整指南
+- 新增 `QUICK_REFERENCE.md` - 快速参考卡片
+- 更新 `README.md` - 添加新功能说明
+- 更新 `FEATURES_SUMMARY.md` - 功能总结
+
+#### 🧪 测试 / Testing
+- 新增 `test_url_import.py` - URL导入测试脚本
+- 新增 `test_csdn_import.py` - CSDN文章导入测试
+- 核心功能测试通过率: 100% (13/13)
+- 导入导出测试通过率: 85.7% (6/7)
+
 ## [1.0.0] - 2024-02-09
 
 ### 🎉 首次发布 / Initial Release

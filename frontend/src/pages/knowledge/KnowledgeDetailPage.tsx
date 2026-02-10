@@ -175,13 +175,104 @@ const KnowledgeDetailPage: React.FC = () => {
 
       {/* Content */}
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: '16px', lineHeight: '1.8' }}>
+        <div 
+          style={{ 
+            fontSize: '16px', 
+            lineHeight: '1.8',
+          }}
+          className="markdown-content"
+        >
           {data.content_type === 'markdown' ? (
             <ReactMarkdown>{data.content}</ReactMarkdown>
           ) : (
             <div dangerouslySetInnerHTML={{ __html: data.content }} />
           )}
         </div>
+        <style>{`
+          .markdown-content h1 {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.3em;
+            margin-top: 24px;
+            margin-bottom: 16px;
+          }
+          .markdown-content h2 {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.3em;
+            margin-top: 24px;
+            margin-bottom: 16px;
+          }
+          .markdown-content h3, .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+          }
+          .markdown-content code {
+            background: #f6f8fa;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+          }
+          .markdown-content pre {
+            background: #f6f8fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow: auto;
+            margin: 16px 0;
+          }
+          .markdown-content pre code {
+            background: none;
+            padding: 0;
+          }
+          .markdown-content blockquote {
+            border-left: 4px solid #dfe2e5;
+            padding: 0 1em;
+            color: #6a737d;
+            margin: 16px 0;
+          }
+          .markdown-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+          }
+          .markdown-content th {
+            border: 1px solid #dfe2e5;
+            padding: 6px 13px;
+            background: #f6f8fa;
+            font-weight: 600;
+          }
+          .markdown-content td {
+            border: 1px solid #dfe2e5;
+            padding: 6px 13px;
+          }
+          .markdown-content ul, .markdown-content ol {
+            padding-left: 2em;
+            margin: 16px 0;
+          }
+          .markdown-content li {
+            margin: 4px 0;
+          }
+          .markdown-content p {
+            margin: 16px 0;
+          }
+          .markdown-content a {
+            color: #0366d6;
+            text-decoration: none;
+          }
+          .markdown-content a:hover {
+            text-decoration: underline;
+          }
+          .markdown-content img {
+            max-width: 100%;
+            height: auto;
+          }
+          .markdown-content strong {
+            font-weight: 600;
+          }
+          .markdown-content hr {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 24px 0;
+          }
+        `}</style>
       </Card>
 
       {/* Attachments */}

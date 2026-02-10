@@ -282,41 +282,64 @@ class ExportService:
         if format not in ["markdown", "json", "html"]:
             raise ValidationError(f"Unsupported export format: {format}")
         
+        logger.info(f"Starting batch export for user {user_id}, {len(item_ids)} items, format: {format}")
+        
         # Create ZIP file in memory
         zip_buffer = BytesIO()
+        exported_count = 0
+        failed_items = []
         
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for item_id in item_ids:
                 try:
-                    item = await self._get_item(item_id, user_id)
+                    logger.info(f"Exporting item {item_id}")
                     
-                    # Generate filename
-                    safe_title = "".join(c for c in item.title if c.isalnum() or c in (' ', '-', '_')).strip()
-                    safe_title = safe_title[:50]  # Limit length
-                    
+                    # Generate content based on format
                     if format == "markdown":
                         content = await self.export_to_markdown(item_id, user_id, include_metadata)
-                        filename = f"{safe_title}.md"
+                        extension = "md"
                     elif format == "json":
                         content = json.dumps(
                             await self.export_to_json(item_id, user_id),
                             ensure_ascii=False,
                             indent=2
                         )
-                        filename = f"{safe_title}.json"
+                        extension = "json"
                     else:  # html
                         content = await self.export_to_html(item_id, user_id)
-                        filename = f"{safe_title}.html"
+                        extension = "html"
+                    
+                    # Get item title for filename (using a simple query)
+                    from sqlalchemy import text
+                    result = await self.db.execute(
+                        text("SELECT title FROM knowledge_items WHERE id = :id"),
+                        {"id": item_id}
+                    )
+                    row = result.fetchone()
+                    title = row[0] if row else f"item_{item_id[:8]}"
+                    
+                    # Generate safe filename
+                    safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
+                    safe_title = safe_title[:50] if safe_title else f"item_{item_id[:8]}"
+                    filename = f"{safe_title}.{extension}"
                     
                     # Add to ZIP
                     zip_file.writestr(filename, content)
+                    exported_count += 1
+                    logger.info(f"Successfully exported item {item_id}")
                     
                 except Exception as e:
-                    logger.error(f"Failed to export item {item_id}: {str(e)}")
+                    logger.error(f"Failed to export item {item_id}: {str(e)}", exc_info=True)
+                    failed_items.append((item_id, str(e)))
                     # Continue with other items
         
+        if exported_count == 0:
+            error_msg = f"No items could be exported. Failed items: {failed_items}"
+            logger.error(error_msg)
+            raise NotFoundError("No items could be exported")
+        
         zip_buffer.seek(0)
-        logger.info(f"Batch export completed: {len(item_ids)} items in {format} format")
+        logger.info(f"Batch export completed: {exported_count}/{len(item_ids)} items in {format} format")
         return zip_buffer
     
     async def export_all(
@@ -353,26 +376,30 @@ class ExportService:
     async def _get_item(
         self,
         knowledge_item_id: str,
-        user_id: str
+        user_id: str,
+        check_author: bool = True
     ) -> KnowledgeItem:
         """Get a knowledge item with all relationships loaded."""
         
-        result = await self.db.execute(
-            select(KnowledgeItem)
-            .options(
-                selectinload(KnowledgeItem.tags),
-                selectinload(KnowledgeItem.category),
-                selectinload(KnowledgeItem.attachments),
-                selectinload(KnowledgeItem.versions)
-            )
-            .where(
-                KnowledgeItem.id == knowledge_item_id,
-                KnowledgeItem.author_id == user_id
-            )
-        )
+        query = select(KnowledgeItem).options(
+            selectinload(KnowledgeItem.tags),
+            selectinload(KnowledgeItem.category),
+            selectinload(KnowledgeItem.attachments),
+            selectinload(KnowledgeItem.versions)
+        ).where(KnowledgeItem.id == knowledge_item_id)
+        
+        if check_author:
+            query = query.where(KnowledgeItem.author_id == user_id)
+        
+        result = await self.db.execute(query)
         item = result.scalar_one_or_none()
         
         if not item:
             raise NotFoundError("Knowledge item not found")
+        
+        # Check if user has permission to view (if not author)
+        if not check_author and item.author_id != user_id:
+            if item.visibility == "private":
+                raise NotFoundError("Knowledge item not found")
         
         return item

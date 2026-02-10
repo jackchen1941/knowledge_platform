@@ -6,6 +6,7 @@ Business logic for knowledge item management.
 
 import uuid
 import re
+import json
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
 from math import ceil
@@ -39,54 +40,193 @@ class KnowledgeService:
         data: KnowledgeCreate
     ) -> KnowledgeItem:
         """Create a new knowledge item with initial version."""
+        from sqlalchemy import text
         
         # Calculate word count and reading time
         word_count = self._calculate_word_count(data.content)
         reading_time = self._calculate_reading_time(word_count)
         
-        # Create knowledge item
+        # Generate IDs
+        item_id = str(uuid.uuid4())
+        version_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+        
+        # Insert knowledge item using raw SQL
+        await self.db.execute(
+            text("""
+                INSERT INTO knowledge_items (
+                    id, title, content, content_type, summary, author_id, category_id,
+                    source_platform, source_url, source_id, is_published, visibility,
+                    meta_data, word_count, reading_time, created_at, updated_at, published_at,
+                    is_deleted, view_count
+                ) VALUES (
+                    :id, :title, :content, :content_type, :summary, :author_id, :category_id,
+                    :source_platform, :source_url, :source_id, :is_published, :visibility,
+                    :meta_data, :word_count, :reading_time, :created_at, :updated_at, :published_at,
+                    :is_deleted, :view_count
+                )
+            """),
+            {
+                "id": item_id,
+                "title": data.title,
+                "content": data.content,
+                "content_type": data.content_type or "markdown",
+                "summary": data.summary,
+                "author_id": user_id,
+                "category_id": data.category_id,
+                "source_platform": data.source_platform,
+                "source_url": data.source_url,
+                "source_id": data.source_id,
+                "is_published": data.is_published or False,
+                "visibility": data.visibility or "private",
+                "meta_data": json.dumps(data.meta_data or {}),
+                "word_count": word_count,
+                "reading_time": reading_time,
+                "created_at": now,
+                "updated_at": now,
+                "published_at": now if data.is_published else None,
+                "is_deleted": False,
+                "view_count": 0
+            }
+        )
+        
+        # Insert version using raw SQL
+        await self.db.execute(
+            text("""
+                INSERT INTO knowledge_versions (
+                    id, knowledge_item_id, version_number, title, content, content_type,
+                    change_summary, change_type, created_by, created_at, meta_data
+                ) VALUES (
+                    :id, :knowledge_item_id, :version_number, :title, :content, :content_type,
+                    :change_summary, :change_type, :created_by, :created_at, :meta_data
+                )
+            """),
+            {
+                "id": version_id,
+                "knowledge_item_id": item_id,
+                "version_number": 1,
+                "title": data.title,
+                "content": data.content,
+                "content_type": data.content_type or "markdown",
+                "change_summary": "Initial creation",
+                "change_type": "create",
+                "created_by": user_id,
+                "created_at": now,
+                "meta_data": json.dumps({})
+            }
+        )
+        
+        # Handle tags
+        if data.tag_ids:
+            await self._attach_tags_raw(item_id, data.tag_ids, user_id)
+        
+        await self.db.commit()
+        
+        # Return a fresh instance without loading from DB to avoid lazy loading issues
         item = KnowledgeItem(
-            id=str(uuid.uuid4()),
+            id=item_id,
             title=data.title,
             content=data.content,
-            content_type=data.content_type,
+            content_type=data.content_type or "markdown",
             summary=data.summary,
             author_id=user_id,
             category_id=data.category_id,
             source_platform=data.source_platform,
             source_url=data.source_url,
             source_id=data.source_id,
-            is_published=data.is_published,
-            visibility=data.visibility,
+            is_published=data.is_published or False,
+            visibility=data.visibility or "private",
             meta_data=data.meta_data or {},
             word_count=word_count,
             reading_time=reading_time,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            view_count=0,
+            is_deleted=False,
+            created_at=now,
+            updated_at=now,
+            published_at=now if data.is_published else None
         )
-        
-        if data.is_published:
-            item.published_at = datetime.utcnow()
-        
-        self.db.add(item)
-        
-        # Handle tags
-        if data.tag_ids:
-            await self._attach_tags(item, data.tag_ids, user_id)
-        
-        # Create initial version
-        version = item.create_version(
-            user_id=user_id,
-            change_summary="Initial creation",
-            change_type="create"
-        )
-        self.db.add(version)
-        
-        await self.db.commit()
-        await self.db.refresh(item)
         
         logger.info(f"Knowledge item created: {item.id} by user {user_id}")
         return item
+    
+    async def _attach_tags_raw(
+        self,
+        item_id: str,
+        tag_ids: List[str],
+        user_id: str
+    ) -> None:
+        """Attach tags using raw SQL to avoid lazy loading."""
+        from sqlalchemy import text
+        
+        if not tag_ids:
+            return
+        
+        # Build IN clause with proper parameter binding
+        placeholders = ','.join([f':tag_{i}' for i in range(len(tag_ids))])
+        params = {f'tag_{i}': tag_id for i, tag_id in enumerate(tag_ids)}
+        params['user_id'] = user_id
+        
+        # Get valid tags
+        result = await self.db.execute(
+            text(f"""
+                SELECT id FROM tags 
+                WHERE id IN ({placeholders})
+                AND (user_id = :user_id OR is_system = 1)
+            """),
+            params
+        )
+        valid_tag_ids = [row[0] for row in result.fetchall()]
+        
+        # Insert associations
+        for tag_id in valid_tag_ids:
+            await self.db.execute(
+                text("""
+                    INSERT OR IGNORE INTO knowledge_item_tags (knowledge_item_id, tag_id) 
+                    VALUES (:item_id, :tag_id)
+                """),
+                {"item_id": item_id, "tag_id": tag_id}
+            )
+            
+            # Increment usage count
+            await self.db.execute(
+                text("UPDATE tags SET usage_count = usage_count + 1 WHERE id = :tag_id"),
+                {"tag_id": tag_id}
+            )
+    
+    async def _update_tags_raw(
+        self,
+        item_id: str,
+        tag_ids: List[str],
+        user_id: str
+    ) -> None:
+        """Update tags using raw SQL to avoid lazy loading."""
+        from sqlalchemy import text
+        
+        # Get current tags
+        result = await self.db.execute(
+            text("SELECT tag_id FROM knowledge_item_tags WHERE knowledge_item_id = :item_id"),
+            {"item_id": item_id}
+        )
+        current_tag_ids = {row[0] for row in result.fetchall()}
+        new_tag_ids = set(tag_ids)
+        
+        # Tags to remove
+        tags_to_remove = current_tag_ids - new_tag_ids
+        for tag_id in tags_to_remove:
+            await self.db.execute(
+                text("DELETE FROM knowledge_item_tags WHERE knowledge_item_id = :item_id AND tag_id = :tag_id"),
+                {"item_id": item_id, "tag_id": tag_id}
+            )
+            # Decrement usage count
+            await self.db.execute(
+                text("UPDATE tags SET usage_count = usage_count - 1 WHERE id = :tag_id"),
+                {"tag_id": tag_id}
+            )
+        
+        # Tags to add
+        tags_to_add = new_tag_ids - current_tag_ids
+        if tags_to_add:
+            await self._attach_tags_raw(item_id, list(tags_to_add), user_id)
     
     async def get_knowledge_item(
         self, 
@@ -230,61 +370,156 @@ class KnowledgeService:
         data: KnowledgeUpdate
     ) -> KnowledgeItem:
         """Update a knowledge item and create a new version."""
+        from sqlalchemy import text
         
-        # Get item with permission check
-        item = await self.get_knowledge_item(item_id, user_id, include_deleted=False)
+        # Get item with permission check (basic check only)
+        result = await self.db.execute(
+            text("SELECT author_id, title, content, content_type FROM knowledge_items WHERE id = :id AND is_deleted = 0"),
+            {"id": item_id}
+        )
+        row = result.fetchone()
+        if not row:
+            raise NotFoundError("Knowledge item not found")
+        
+        author_id, current_title, current_content, current_content_type = row
         
         # Check ownership
-        if item.author_id != user_id:
+        if author_id != user_id:
             raise PermissionError("You can only update your own knowledge items")
         
-        # Create version before updating
-        version = item.create_version(
-            user_id=user_id,
-            change_summary=data.change_summary or "Content updated",
-            change_type="edit"
+        # Get current version number
+        result = await self.db.execute(
+            text("SELECT MAX(version_number) FROM knowledge_versions WHERE knowledge_item_id = :id"),
+            {"id": item_id}
         )
-        self.db.add(version)
+        max_version = result.scalar() or 0
         
-        # Update fields
+        # Create new version using raw SQL
+        version_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+        
+        await self.db.execute(
+            text("""
+                INSERT INTO knowledge_versions (
+                    id, knowledge_item_id, version_number, title, content, content_type,
+                    change_summary, change_type, created_by, created_at, meta_data
+                ) VALUES (
+                    :id, :knowledge_item_id, :version_number, :title, :content, :content_type,
+                    :change_summary, :change_type, :created_by, :created_at, :meta_data
+                )
+            """),
+            {
+                "id": version_id,
+                "knowledge_item_id": item_id,
+                "version_number": max_version + 1,
+                "title": current_title,
+                "content": current_content,
+                "content_type": current_content_type,
+                "change_summary": data.change_summary or "Content updated",
+                "change_type": "edit",
+                "created_by": user_id,
+                "created_at": now,
+                "meta_data": json.dumps({})
+            }
+        )
+        
+        # Build update query dynamically
+        update_fields = []
+        update_params = {"id": item_id, "updated_at": now}
+        
         if data.title is not None:
-            item.title = data.title
+            update_fields.append("title = :title")
+            update_params["title"] = data.title
         
         if data.content is not None:
-            item.content = data.content
+            update_fields.append("content = :content")
+            update_params["content"] = data.content
             # Recalculate word count and reading time
-            item.word_count = self._calculate_word_count(data.content)
-            item.reading_time = self._calculate_reading_time(item.word_count)
+            word_count = self._calculate_word_count(data.content)
+            reading_time = self._calculate_reading_time(word_count)
+            update_fields.append("word_count = :word_count")
+            update_fields.append("reading_time = :reading_time")
+            update_params["word_count"] = word_count
+            update_params["reading_time"] = reading_time
         
         if data.content_type is not None:
-            item.content_type = data.content_type
+            update_fields.append("content_type = :content_type")
+            update_params["content_type"] = data.content_type
         
         if data.summary is not None:
-            item.summary = data.summary
+            update_fields.append("summary = :summary")
+            update_params["summary"] = data.summary
         
         if data.category_id is not None:
-            item.category_id = data.category_id
+            update_fields.append("category_id = :category_id")
+            update_params["category_id"] = data.category_id
         
         if data.visibility is not None:
-            item.visibility = data.visibility
+            update_fields.append("visibility = :visibility")
+            update_params["visibility"] = data.visibility
         
         if data.source_platform is not None:
-            item.source_platform = data.source_platform
+            update_fields.append("source_platform = :source_platform")
+            update_params["source_platform"] = data.source_platform
         
         if data.source_url is not None:
-            item.source_url = data.source_url
+            update_fields.append("source_url = :source_url")
+            update_params["source_url"] = data.source_url
         
         if data.meta_data is not None:
-            item.meta_data = data.meta_data
+            update_fields.append("meta_data = :meta_data")
+            update_params["meta_data"] = json.dumps(data.meta_data)
+        
+        # Always update updated_at
+        update_fields.append("updated_at = :updated_at")
+        
+        # Execute update
+        if update_fields:
+            update_query = f"UPDATE knowledge_items SET {', '.join(update_fields)} WHERE id = :id"
+            await self.db.execute(text(update_query), update_params)
         
         # Handle tags
         if data.tag_ids is not None:
-            await self._update_tags(item, data.tag_ids, user_id)
-        
-        item.updated_at = datetime.utcnow()
+            await self._update_tags_raw(item_id, data.tag_ids, user_id)
         
         await self.db.commit()
-        await self.db.refresh(item)
+        
+        # Return updated item (construct from memory to avoid lazy loading)
+        result = await self.db.execute(
+            text("SELECT * FROM knowledge_items WHERE id = :id"),
+            {"id": item_id}
+        )
+        row = result.fetchone()
+        
+        # Parse meta_data safely
+        try:
+            meta_data = json.loads(row[17]) if row[17] else {}
+        except (json.JSONDecodeError, TypeError):
+            meta_data = {}
+        
+        item = KnowledgeItem(
+            id=row[0],
+            title=row[1],
+            content=row[2],
+            content_type=row[3],
+            summary=row[4],
+            author_id=row[5],
+            category_id=row[6],
+            source_platform=row[7],
+            source_url=row[8],
+            source_id=row[9],
+            is_published=bool(row[10]),
+            is_deleted=bool(row[11]),
+            visibility=row[12],
+            created_at=row[13],
+            updated_at=row[14],
+            published_at=row[15],
+            deleted_at=row[16],
+            meta_data=meta_data,
+            view_count=row[18],
+            word_count=row[19],
+            reading_time=row[20]
+        )
         
         logger.info(f"Knowledge item updated: {item.id} by user {user_id}")
         return item
@@ -530,6 +765,11 @@ class KnowledgeService:
         user_id: str
     ) -> None:
         """Attach tags to a knowledge item."""
+        from app.models.tag import Tag
+        from sqlalchemy import and_, or_, insert
+        
+        if not tag_ids:
+            return
         
         # Get tags
         result = await self.db.execute(
@@ -543,12 +783,20 @@ class KnowledgeService:
                 )
             )
         )
-        tags = result.scalars().all()
+        tags = list(result.scalars().all())
         
-        # Attach tags and increment usage
+        if not tags:
+            return
+        
+        # Insert into association table directly
+        from sqlalchemy import text
         for tag in tags:
-            item.tags.append(tag)
-            tag.increment_usage()
+            await self.db.execute(
+                text("INSERT OR IGNORE INTO knowledge_item_tags (knowledge_item_id, tag_id) VALUES (:item_id, :tag_id)"),
+                {"item_id": item.id, "tag_id": tag.id}
+            )
+            # Increment usage count
+            tag.usage_count = (tag.usage_count or 0) + 1
     
     async def _update_tags(
         self,
