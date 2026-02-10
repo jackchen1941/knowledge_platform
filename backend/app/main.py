@@ -16,7 +16,7 @@ from fastapi.security import HTTPBearer
 from loguru import logger
 
 from app.core.config import get_settings
-from app.core.database import init_db
+from app.core.database import init_database, init_db
 from app.core.exceptions import KMPException
 from app.core.logging import setup_logging
 from app.core.security import SecurityMiddleware
@@ -33,7 +33,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Setup logging
     setup_logging(settings.LOG_LEVEL)
     
-    # Initialize database
+    # Initialize database engine and connections
+    await init_database()
+    
+    # Create tables
     await init_db()
     
     logger.info("Application startup complete")

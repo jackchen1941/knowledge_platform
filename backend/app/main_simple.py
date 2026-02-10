@@ -16,6 +16,16 @@ from contextlib import asynccontextmanager
 
 from app.core.config import get_settings
 from app.core.database import init_database
+from app.api.v1.endpoints import (
+    auth,
+    knowledge,
+    categories,
+    tags,
+    search,
+    analytics,
+    attachments,
+    users,
+)
 
 settings = get_settings()
 
@@ -52,6 +62,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
+app.include_router(categories.router, prefix="/api/v1/categories", tags=["categories"])
+app.include_router(tags.router, prefix="/api/v1/tags", tags=["tags"])
+app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
+app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
+app.include_router(attachments.router, prefix="/api/v1", tags=["attachments"])
 
 
 @app.get("/")

@@ -28,7 +28,7 @@ router = APIRouter()
 @router.post("/backup/create", response_class=StreamingResponse)
 async def create_backup(
     backup_create: BackupCreate,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -45,12 +45,12 @@ async def create_backup(
     try:
         if backup_create.backup_type == "incremental" and backup_create.since:
             backup_file = await service.create_incremental_backup(
-                current_user.id,
+                current_user_id,
                 backup_create.since
             )
             filename = f"incremental_backup_{current_user.username}.zip"
         else:
-            backup_file = await service.create_full_backup(current_user.id)
+            backup_file = await service.create_full_backup(current_user_id)
             filename = f"full_backup_{current_user.username}.zip"
         
         return StreamingResponse(
@@ -110,7 +110,7 @@ async def restore_backup(
     restore_categories: bool = True,
     restore_tags: bool = True,
     overwrite_existing: bool = False,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -143,7 +143,7 @@ async def restore_backup(
         # Restore backup
         results = await service.restore_backup(
             backup_buffer,
-            current_user.id,
+            current_user_id,
             options
         )
         

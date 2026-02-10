@@ -43,7 +43,7 @@ async def search_knowledge(
     sort_order: str = Query("desc", description="Sort order (asc/desc)"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -80,7 +80,7 @@ async def search_knowledge(
     )
     
     service = SearchService(db)
-    items, total = await service.search(current_user.id, search_query)
+    items, total = await service.search(current_user_id, search_query)
     
     # Calculate total pages
     total_pages = (total + page_size - 1) // page_size
@@ -98,7 +98,7 @@ async def search_knowledge(
 async def get_search_suggestions(
     prefix: str = Query(..., min_length=1, description="Search prefix"),
     limit: int = Query(10, ge=1, le=50, description="Number of suggestions"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -106,14 +106,14 @@ async def get_search_suggestions(
     Returns suggestions from knowledge items, tags, and categories.
     """
     service = SearchService(db)
-    suggestions = await service.get_suggestions(current_user.id, prefix, limit)
+    suggestions = await service.get_suggestions(current_user_id, prefix, limit)
     return SearchSuggestionsResponse(suggestions=suggestions)
 
 
 @router.get("/history", response_model=SearchHistoryResponse)
 async def get_search_history(
     limit: int = Query(10, ge=1, le=50, description="Number of history items"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -121,14 +121,14 @@ async def get_search_history(
     Note: This feature requires search history tracking to be implemented.
     """
     service = SearchService(db)
-    queries = await service.get_search_history(current_user.id, limit)
+    queries = await service.get_search_history(current_user_id, limit)
     return SearchHistoryResponse(queries=queries)
 
 
 @router.get("/popular", response_model=PopularSearchesResponse)
 async def get_popular_searches(
     limit: int = Query(10, ge=1, le=50, description="Number of popular searches"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -136,7 +136,7 @@ async def get_popular_searches(
     Note: This feature requires search analytics to be implemented.
     """
     service = SearchService(db)
-    searches = await service.get_popular_searches(current_user.id, limit)
+    searches = await service.get_popular_searches(current_user_id, limit)
     return PopularSearchesResponse(searches=searches)
 
 
@@ -144,7 +144,7 @@ async def get_popular_searches(
 async def find_similar_items(
     knowledge_item_id: str,
     limit: int = Query(10, ge=1, le=50, description="Number of similar items"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -152,7 +152,7 @@ async def find_similar_items(
     Uses tags and category to determine similarity.
     """
     service = SearchService(db)
-    items = await service.search_by_similarity(current_user.id, knowledge_item_id, limit)
+    items = await service.search_by_similarity(current_user_id, knowledge_item_id, limit)
     
     return KnowledgeListResponse(
         items=[KnowledgeListItem.from_orm(item) for item in items],

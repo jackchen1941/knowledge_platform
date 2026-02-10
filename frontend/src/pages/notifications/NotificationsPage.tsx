@@ -49,7 +49,7 @@ interface Notification {
   is_read: boolean;
   is_archived: boolean;
   action_url?: string;
-  action_data: Record<string, any>;
+  action_data?: Record<string, any>;
   created_at: string;
   read_at?: string;
   expires_at?: string;

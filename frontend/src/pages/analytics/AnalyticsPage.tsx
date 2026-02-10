@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, message, Table, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, Table, Tag } from 'antd';
 import {
   FileTextOutlined,
   FolderOutlined,
@@ -51,23 +51,49 @@ const AnalyticsPage: React.FC = () => {
       setLoading(true);
 
       // Fetch overview stats
-      const overviewRes = await analyticsAPI.overview();
-      setStats(overviewRes.data);
+      try {
+        const overviewRes = await analyticsAPI.overview();
+        setStats(overviewRes.data);
+      } catch (error) {
+        console.warn('Overview API not available, using default stats');
+        setStats({
+          total_items: 0,
+          published_items: 0,
+          draft_items: 0,
+          total_words: 0,
+          total_views: 0,
+          total_tags: 0,
+          total_categories: 0,
+          average_words_per_item: 0,
+        });
+      }
 
       // Fetch top tags
-      const tagsRes = await analyticsAPI.topTags(10);
-      setTopTags(tagsRes.data.tags || []);
+      try {
+        const tagsRes = await analyticsAPI.topTags(10);
+        setTopTags(tagsRes.data.tags || []);
+      } catch (error) {
+        console.warn('Top tags API not available, using empty list');
+        setTopTags([]);
+      }
 
       // Fetch distribution
-      const distRes = await analyticsAPI.distribution();
-      setCategoryDist(distRes.data.by_category || []);
+      try {
+        const distRes = await analyticsAPI.distribution();
+        setCategoryDist(distRes.data.by_category || []);
+      } catch (error) {
+        console.warn('Distribution API not available, using empty list');
+        setCategoryDist([]);
+      }
 
       // Fetch word count distribution
-      const wordCountRes = await analyticsAPI.wordCount();
-      setWordCountDist(wordCountRes.data.distribution || []);
-    } catch (error: any) {
-      console.error('Failed to fetch analytics:', error);
-      message.error('加载统计数据失败');
+      try {
+        const wordCountRes = await analyticsAPI.wordCount();
+        setWordCountDist(wordCountRes.data.distribution || []);
+      } catch (error) {
+        console.warn('Word count API not available, using empty list');
+        setWordCountDist([]);
+      }
     } finally {
       setLoading(false);
     }

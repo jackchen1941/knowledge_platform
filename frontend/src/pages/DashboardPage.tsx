@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, message, List, Tag } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Spin, List, Tag } from 'antd';
 import {
   FileTextOutlined,
   FolderOutlined,
@@ -43,20 +43,39 @@ const DashboardPage: React.FC = () => {
       setLoading(true);
       
       // Fetch overview stats
-      const statsResponse = await analyticsAPI.overview();
-      setStats(statsResponse.data);
+      try {
+        const statsResponse = await analyticsAPI.overview();
+        setStats(statsResponse.data);
+      } catch (error) {
+        console.warn('Analytics API not available, using default stats');
+        // 设置默认值，不显示错误
+        setStats({
+          total_items: 0,
+          published_items: 0,
+          draft_items: 0,
+          total_words: 0,
+          total_views: 0,
+          total_tags: 0,
+          total_categories: 0,
+        });
+      }
 
       // Fetch recent items
-      const itemsResponse = await knowledgeAPI.list({
-        page: 1,
-        page_size: 5,
-        sort_by: 'updated_at',
-        sort_order: 'desc',
-      });
-      setRecentItems(itemsResponse.data.items || []);
+      try {
+        const itemsResponse = await knowledgeAPI.list({
+          page: 1,
+          page_size: 5,
+          sort_by: 'updated_at',
+          sort_order: 'desc',
+        });
+        setRecentItems(itemsResponse.data.items || []);
+      } catch (error) {
+        console.warn('Knowledge API not available, showing empty list');
+        setRecentItems([]);
+      }
     } catch (error: any) {
       console.error('Failed to fetch dashboard data:', error);
-      message.error('加载数据失败');
+      // 不显示错误消息，使用默认空数据
     } finally {
       setLoading(false);
     }

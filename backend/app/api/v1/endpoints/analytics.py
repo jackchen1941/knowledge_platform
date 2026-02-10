@@ -28,7 +28,7 @@ router = APIRouter()
 
 @router.get("/overview", response_model=OverviewStatsResponse)
 async def get_overview_stats(
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -36,14 +36,14 @@ async def get_overview_stats(
     Includes total items, words, views, tags, and categories.
     """
     service = AnalyticsService(db)
-    stats = await service.get_overview_stats(current_user.id)
+    stats = await service.get_overview_stats(current_user_id)
     return stats
 
 
 @router.get("/activity", response_model=RecentActivityResponse)
 async def get_recent_activity(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -51,41 +51,41 @@ async def get_recent_activity(
     Shows items created, updated, and published in the specified period.
     """
     service = AnalyticsService(db)
-    activity = await service.get_recent_activity(current_user.id, days)
+    activity = await service.get_recent_activity(current_user_id, days)
     return activity
 
 
 @router.get("/distribution", response_model=ContentDistributionResponse)
 async def get_content_distribution(
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get content distribution by category, content type, and visibility.
     """
     service = AnalyticsService(db)
-    distribution = await service.get_content_distribution(current_user.id)
+    distribution = await service.get_content_distribution(current_user_id)
     return distribution
 
 
 @router.get("/tags/top", response_model=TopTagsResponse)
 async def get_top_tags(
     limit: int = Query(10, ge=1, le=50, description="Number of top tags"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get most used tags.
     """
     service = AnalyticsService(db)
-    tags = await service.get_top_tags(current_user.id, limit)
+    tags = await service.get_top_tags(current_user_id, limit)
     return TopTagsResponse(tags=[TopTagItem(**tag) for tag in tags])
 
 
 @router.get("/trends", response_model=WritingTrendsResponse)
 async def get_writing_trends(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -93,26 +93,26 @@ async def get_writing_trends(
     Shows daily statistics of items created and words written.
     """
     service = AnalyticsService(db)
-    trends = await service.get_writing_trends(current_user.id, days)
+    trends = await service.get_writing_trends(current_user_id, days)
     return trends
 
 
 @router.get("/word-count", response_model=WordCountDistributionResponse)
 async def get_word_count_distribution(
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get distribution of items by word count ranges.
     """
     service = AnalyticsService(db)
-    distribution = await service.get_word_count_distribution(current_user.id)
+    distribution = await service.get_word_count_distribution(current_user_id)
     return distribution
 
 
 @router.get("/sources", response_model=SourcePlatformStatsResponse)
 async def get_source_platform_stats(
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -120,5 +120,5 @@ async def get_source_platform_stats(
     Shows how many items were imported from each platform.
     """
     service = AnalyticsService(db)
-    platforms = await service.get_source_platform_stats(current_user.id)
+    platforms = await service.get_source_platform_stats(current_user_id)
     return SourcePlatformStatsResponse(platforms=[SourcePlatformItem(**p) for p in platforms])

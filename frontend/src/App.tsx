@@ -24,6 +24,7 @@ import ImportManagementPage from '@/pages/import/ImportManagementPage';
 import SyncManagementPage from '@/pages/sync/SyncManagementPage';
 import NotificationsPage from '@/pages/notifications/NotificationsPage';
 import WebSocketTestPage from '@/pages/websocket/WebSocketTestPage';
+import UsersManagementPage from '@/pages/users/UsersManagementPage';
 
 const { Content } = Layout;
 
@@ -65,6 +66,7 @@ const App: React.FC = () => {
               <Route path="/import" element={<ImportManagementPage />} />
               <Route path="/sync" element={<SyncManagementPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/users" element={<UsersManagementPage />} />
               <Route path="/websocket-test" element={<WebSocketTestPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/settings" element={<SettingsPage />} />

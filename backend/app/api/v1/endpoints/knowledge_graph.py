@@ -27,7 +27,7 @@ router = APIRouter()
 async def create_link(
     knowledge_item_id: str,
     data: LinkCreate,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a link between two knowledge items."""
@@ -35,7 +35,7 @@ async def create_link(
     link = await service.create_link(
         knowledge_item_id,
         data.target_id,
-        current_user.id,
+        current_user_id,
         data.link_type,
         data.description
     )
@@ -46,24 +46,24 @@ async def create_link(
 async def get_links(
     knowledge_item_id: str,
     direction: str = Query("both", pattern="^(outgoing|incoming|both)$"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all links for a knowledge item."""
     service = KnowledgeGraphService(db)
-    links = await service.get_links(knowledge_item_id, current_user.id, direction)
+    links = await service.get_links(knowledge_item_id, current_user_id, direction)
     return links
 
 
 @router.delete("/links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_link(
     link_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a knowledge link."""
     service = KnowledgeGraphService(db)
-    await service.delete_link(link_id, current_user.id)
+    await service.delete_link(link_id, current_user_id)
     return None
 
 
@@ -71,7 +71,7 @@ async def delete_link(
 async def get_graph(
     center_id: Optional[str] = Query(None, description="Center item ID for subgraph"),
     depth: int = Query(2, ge=1, le=5, description="Depth for subgraph"),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -80,7 +80,7 @@ async def get_graph(
     Otherwise, returns full graph.
     """
     service = KnowledgeGraphService(db)
-    graph_data = await service.get_graph_data(current_user.id, center_id, depth)
+    graph_data = await service.get_graph_data(current_user_id, center_id, depth)
     return graph_data
 
 
@@ -88,21 +88,21 @@ async def get_graph(
 async def get_related_items(
     knowledge_item_id: str,
     limit: int = Query(10, ge=1, le=50),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get automatically detected related items."""
     service = KnowledgeGraphService(db)
-    suggestions = await service.detect_related_items(knowledge_item_id, current_user.id, limit)
+    suggestions = await service.detect_related_items(knowledge_item_id, current_user_id, limit)
     return RelatedItemsResponse(suggestions=suggestions)
 
 
 @router.get("/graph/stats", response_model=GraphStatsResponse)
 async def get_graph_stats(
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get knowledge graph statistics."""
     service = KnowledgeGraphService(db)
-    stats = await service.get_graph_stats(current_user.id)
+    stats = await service.get_graph_stats(current_user_id)
     return stats

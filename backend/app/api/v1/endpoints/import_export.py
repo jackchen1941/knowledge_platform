@@ -27,19 +27,21 @@ router = APIRouter()
 async def export_single_item(
     knowledge_item_id: str,
     request: ExportSingleRequest,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Export a single knowledge item to the specified format.
     Returns the file content directly.
     """
+    from urllib.parse import quote
+    
     service = ExportService(db)
     
     if request.format == "markdown":
         content = await service.export_to_markdown(
             knowledge_item_id,
-            current_user.id,
+            current_user_id,
             request.include_metadata
         )
         media_type = "text/markdown"
@@ -48,28 +50,31 @@ async def export_single_item(
         import json
         data = await service.export_to_json(
             knowledge_item_id,
-            current_user.id,
+            current_user_id,
             request.include_versions
         )
         content = json.dumps(data, ensure_ascii=False, indent=2)
         media_type = "application/json"
         extension = "json"
     else:  # html
-        content = await service.export_to_html(knowledge_item_id, current_user.id)
+        content = await service.export_to_html(knowledge_item_id, current_user_id)
         media_type = "text/html"
         extension = "html"
     
     # Get item for filename
-    item = await service._get_item(knowledge_item_id, current_user.id)
+    item = await service._get_item(knowledge_item_id, current_user_id)
     safe_title = "".join(c for c in item.title if c.isalnum() or c in (' ', '-', '_')).strip()
-    safe_title = safe_title[:50]
+    safe_title = safe_title[:50] if safe_title else "export"
     filename = f"{safe_title}.{extension}"
+    
+    # URL encode the filename for Content-Disposition header
+    encoded_filename = quote(filename)
     
     return Response(
         content=content.encode('utf-8') if isinstance(content, str) else content,
         media_type=media_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
         }
     )
 
@@ -77,7 +82,7 @@ async def export_single_item(
 @router.post("/export/batch", response_class=StreamingResponse)
 async def export_batch_items(
     request: ExportBatchRequest,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -87,7 +92,7 @@ async def export_batch_items(
     service = ExportService(db)
     
     zip_buffer = await service.batch_export(
-        current_user.id,
+        current_user_id,
         request.item_ids,
         request.format,
         request.include_metadata
@@ -109,7 +114,7 @@ async def export_batch_items(
 @router.post("/export/all", response_class=StreamingResponse)
 async def export_all_items(
     request: ExportAllRequest,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -119,7 +124,7 @@ async def export_all_items(
     service = ExportService(db)
     
     zip_buffer = await service.export_all(
-        current_user.id,
+        current_user_id,
         request.format,
         request.include_deleted
     )

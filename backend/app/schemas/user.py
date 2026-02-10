@@ -21,6 +21,9 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """User creation schema."""
     password: str
+    is_active: Optional[bool] = True
+    is_verified: Optional[bool] = False
+    is_superuser: Optional[bool] = False
 
 
 class UserUpdate(BaseModel):
@@ -31,6 +34,10 @@ class UserUpdate(BaseModel):
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
+    password: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
+    is_superuser: Optional[bool] = None
 
 
 class UserResponse(UserBase):
@@ -38,6 +45,7 @@ class UserResponse(UserBase):
     id: str
     is_active: bool
     is_verified: bool
+    is_superuser: bool
     created_at: datetime
     updated_at: datetime
     last_login: Optional[datetime] = None
@@ -45,6 +53,15 @@ class UserResponse(UserBase):
     
     class Config:
         from_attributes = True
+
+
+class UserListResponse(BaseModel):
+    """User list response schema."""
+    users: list[UserResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
 class UserProfile(UserResponse):

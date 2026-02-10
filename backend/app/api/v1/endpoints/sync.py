@@ -32,7 +32,7 @@ router = APIRouter()
 @router.post("/devices/register", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)
 async def register_device(
     device_data: DeviceRegister,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -43,7 +43,7 @@ async def register_device(
     service = SyncService(db)
     
     device = await service.register_device(
-        user_id=current_user.id,
+        user_id=current_user_id,
         device_name=device_data.device_name,
         device_type=device_data.device_type,
         device_id=device_data.device_id,
@@ -54,30 +54,30 @@ async def register_device(
 
 @router.get("/devices", response_model=List[DeviceResponse])
 async def list_devices(
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get list of registered devices."""
     service = SyncService(db)
-    devices = await service.get_devices(current_user.id)
+    devices = await service.get_devices(current_user_id)
     return devices
 
 
 @router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def deactivate_device(
     device_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Deactivate a device."""
     service = SyncService(db)
-    await service.deactivate_device(device_id, current_user.id)
+    await service.deactivate_device(device_id, current_user_id)
 
 
 @router.post("/pull", response_model=SyncPullResponse)
 async def sync_pull(
     request: SyncPullRequest,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -88,7 +88,7 @@ async def sync_pull(
     service = SyncService(db)
     
     result = await service.sync_pull(
-        user_id=current_user.id,
+        user_id=current_user_id,
         device_id=request.device_id,
         last_sync=request.last_sync,
     )
@@ -99,7 +99,7 @@ async def sync_pull(
 @router.post("/push", response_model=SyncPushResponse)
 async def sync_push(
     request: SyncPushRequest,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -112,7 +112,7 @@ async def sync_push(
     changes = [change.dict() for change in request.changes]
     
     result = await service.sync_push(
-        user_id=current_user.id,
+        user_id=current_user_id,
         device_id=request.device_id,
         changes=changes,
     )
@@ -122,12 +122,12 @@ async def sync_push(
 
 @router.get("/conflicts", response_model=List[ConflictResponse])
 async def list_conflicts(
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get list of unresolved conflicts."""
     service = SyncService(db)
-    conflicts = await service.get_conflicts(current_user.id)
+    conflicts = await service.get_conflicts(current_user_id)
     return conflicts
 
 
@@ -135,7 +135,7 @@ async def list_conflicts(
 async def resolve_conflict(
     conflict_id: str,
     resolution: ConflictResolve,
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Resolve a sync conflict."""
@@ -143,7 +143,7 @@ async def resolve_conflict(
     
     await service.resolve_conflict(
         conflict_id=conflict_id,
-        user_id=current_user.id,
+        user_id=current_user_id,
         resolution=resolution.resolution,
     )
     
@@ -152,14 +152,14 @@ async def resolve_conflict(
 
 @router.get("/stats", response_model=SyncStatsResponse)
 async def get_sync_stats(
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get synchronization statistics."""
     service = SyncService(db)
     
-    devices = await service.get_devices(current_user.id)
-    conflicts = await service.get_conflicts(current_user.id)
+    devices = await service.get_devices(current_user_id)
+    conflicts = await service.get_conflicts(current_user_id)
     
     # Calculate stats
     total_devices = len(devices)

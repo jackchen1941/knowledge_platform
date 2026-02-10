@@ -75,7 +75,8 @@ const SearchPage: React.FC = () => {
       const response = await categoriesAPI.list();
       setCategories(response.data.categories || []);
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.warn('Categories API not available, using empty list');
+      setCategories([]);
     }
   };
 
@@ -84,7 +85,8 @@ const SearchPage: React.FC = () => {
       const response = await tagsAPI.list();
       setTags(response.data.tags || []);
     } catch (error) {
-      console.error('Failed to fetch tags:', error);
+      console.warn('Tags API not available, using empty list');
+      setTags([]);
     }
   };
 
@@ -120,7 +122,9 @@ const SearchPage: React.FC = () => {
       setResults(response.data.items || []);
       setTotal(response.data.total || 0);
     } catch (error: any) {
-      console.error('Search failed:', error);
+      console.warn('Search API not available, showing empty results');
+      setResults([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -136,7 +140,8 @@ const SearchPage: React.FC = () => {
       const response = await searchAPI.suggestions(value);
       setSuggestions(response.data.suggestions || []);
     } catch (error) {
-      console.error('Failed to fetch suggestions:', error);
+      console.warn('Suggestions API not available, using empty list');
+      setSuggestions([]);
     }
   };
 

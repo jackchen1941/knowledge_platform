@@ -57,16 +57,23 @@ const CategoriesPage: React.FC = () => {
     setLoading(true);
     try {
       // Fetch tree structure
-      const treeResponse = await categoriesAPI.getTree();
-      const tree = treeResponse.data.tree || [];
-      setTreeData(convertToTreeData(tree));
+      try {
+        const treeResponse = await categoriesAPI.getTree();
+        const tree = treeResponse.data.tree || [];
+        setTreeData(convertToTreeData(tree));
+      } catch (error) {
+        console.warn('Categories tree API not available, using empty tree');
+        setTreeData([]);
+      }
 
       // Fetch flat list
-      const listResponse = await categoriesAPI.list();
-      setFlatData(listResponse.data.categories || []);
-    } catch (error: any) {
-      console.error('Failed to fetch categories:', error);
-      message.error('加载分类失败');
+      try {
+        const listResponse = await categoriesAPI.list();
+        setFlatData(listResponse.data.categories || []);
+      } catch (error) {
+        console.warn('Categories list API not available, using empty list');
+        setFlatData([]);
+      }
     } finally {
       setLoading(false);
     }

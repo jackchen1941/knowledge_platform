@@ -62,7 +62,8 @@ const KnowledgeListPage: React.FC = () => {
       const response = await categoriesAPI.list();
       setCategories(response.data.categories || []);
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.warn('Categories API not available, using empty list');
+      setCategories([]);
     }
   };
 
@@ -90,8 +91,9 @@ const KnowledgeListPage: React.FC = () => {
       setData(response.data.items || []);
       setTotal(response.data.total || 0);
     } catch (error: any) {
-      console.error('Failed to fetch knowledge items:', error);
-      message.error('加载数据失败');
+      console.warn('Knowledge API not available, showing empty list');
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }

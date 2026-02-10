@@ -63,6 +63,30 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleSystemSettingsUpdate = async (values: any) => {
+    setLoading(true);
+    try {
+      // Save to localStorage
+      localStorage.setItem('theme', values.theme);
+      localStorage.setItem('language', values.language);
+      localStorage.setItem('auto_save', values.auto_save.toString());
+      
+      // Apply theme immediately
+      if (values.theme === 'dark') {
+        document.body.classList.add('dark-theme');
+      } else {
+        document.body.classList.remove('dark-theme');
+      }
+      
+      message.success('系统设置已保存');
+    } catch (error: any) {
+      console.error('Failed to save settings:', error);
+      message.error('保存失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleExport = async (format: string) => {
     try {
       message.info(`正在导出为 ${format} 格式...`);
@@ -271,11 +295,19 @@ const SettingsPage: React.FC = () => {
           key="system"
         >
           <Card title="偏好设置">
-            <Form layout="vertical" style={{ maxWidth: 600 }}>
+            <Form 
+              layout="vertical" 
+              style={{ maxWidth: 600 }}
+              onFinish={handleSystemSettingsUpdate}
+              initialValues={{
+                theme: localStorage.getItem('theme') || 'light',
+                language: localStorage.getItem('language') || 'zh-CN',
+                auto_save: localStorage.getItem('auto_save') !== 'false',
+              }}
+            >
               <Form.Item
                 name="theme"
                 label="主题"
-                initialValue="light"
               >
                 <Select>
                   <Select.Option value="light">浅色</Select.Option>
@@ -287,7 +319,6 @@ const SettingsPage: React.FC = () => {
               <Form.Item
                 name="language"
                 label="语言"
-                initialValue="zh-CN"
               >
                 <Select>
                   <Select.Option value="zh-CN">简体中文</Select.Option>
@@ -299,13 +330,12 @@ const SettingsPage: React.FC = () => {
                 name="auto_save"
                 label="自动保存"
                 valuePropName="checked"
-                initialValue={true}
               >
                 <Switch checkedChildren="开启" unCheckedChildren="关闭" />
               </Form.Item>
 
               <Form.Item>
-                <Button type="primary">
+                <Button type="primary" htmlType="submit" loading={loading}>
                   保存设置
                 </Button>
               </Form.Item>

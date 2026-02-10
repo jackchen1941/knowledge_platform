@@ -117,6 +117,8 @@ export const tagsAPI = {
   delete: (id: string) => api.delete(`/tags/${id}`),
   getPopular: (limit?: number) => api.get('/tags/popular', { params: { limit } }),
   autocomplete: (prefix: string) => api.get('/tags/autocomplete', { params: { prefix } }),
+  merge: (sourceTagId: string, targetTagId: string) => 
+    api.post('/tags/merge', { source_tag_id: sourceTagId, target_tag_id: targetTagId }),
 };
 
 // Search API
@@ -133,6 +135,7 @@ export const analyticsAPI = {
   distribution: () => api.get('/analytics/distribution'),
   topTags: (limit?: number) => api.get('/analytics/tags/top', { params: { limit } }),
   trends: (days?: number) => api.get('/analytics/trends', { params: { days } }),
+  wordCount: () => api.get('/analytics/word-count'),
 };
 
 // Knowledge Graph API
@@ -243,6 +246,16 @@ export const notificationsAPI = {
   // Test endpoint
   test: () => api.get('/notifications/test'),
   createDemo: () => api.post('/notifications/demo'),
+};
+
+// Users API
+export const usersAPI = {
+  list: (params?: any) => api.get('/users', { params }),
+  get: (id: string) => api.get(`/users/${id}`),
+  create: (data: any) => api.post('/users', data),
+  update: (id: string, data: any) => api.put(`/users/${id}`, data),
+  delete: (id: string) => api.delete(`/users/${id}`),
+  getStats: () => api.get('/users/stats/overview'),
 };
 
 export default api;

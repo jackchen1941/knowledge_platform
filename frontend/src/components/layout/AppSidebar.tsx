@@ -13,6 +13,7 @@ import {
   SyncOutlined,
   BellOutlined,
   WifiOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -67,6 +68,11 @@ const AppSidebar: React.FC = () => {
       key: '/notifications',
       icon: <BellOutlined />,
       label: '通知中心',
+    },
+    {
+      key: '/users',
+      icon: <TeamOutlined />,
+      label: '用户管理',
     },
     {
       key: '/websocket-test',

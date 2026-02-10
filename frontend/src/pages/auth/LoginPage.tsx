@@ -3,7 +3,7 @@ import { Form, Input, Button, Card, Typography, message, Space } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppDispatch } from '@/hooks/redux';
-import { loginSuccess } from '@/store/slices/authSlice';
+import { setToken } from '@/store/slices/authSlice';
 import { authAPI } from '@/services/api';
 
 const { Title, Text } = Typography;
@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
       }
 
       // Update Redux state
-      dispatch(loginSuccess(response.user));
+      dispatch(setToken(response.access_token));
 
       message.success('登录成功！');
       navigate('/');
