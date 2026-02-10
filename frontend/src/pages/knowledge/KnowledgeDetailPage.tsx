@@ -24,6 +24,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { knowledgeAPI } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
+import RelatedKnowledgeSection from '@/components/knowledge/RelatedKnowledgeSection';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -293,8 +294,11 @@ const KnowledgeDetailPage: React.FC = () => {
         </Card>
       )}
 
+      {/* Related Knowledge */}
+      <RelatedKnowledgeSection knowledgeId={id!} />
+
       {/* Metadata */}
-      <Card title="元数据">
+      <Card title="元数据" style={{ marginTop: 16 }}>
         <Descriptions column={2}>
           <Descriptions.Item label="创建时间">
             {new Date(data.created_at).toLocaleString('zh-CN')}

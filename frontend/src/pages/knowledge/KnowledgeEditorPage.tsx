@@ -13,6 +13,7 @@ import {
 import { SaveOutlined, ArrowLeftOutlined, EyeOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { knowledgeAPI, categoriesAPI, tagsAPI } from '@/services/api';
+import { formatErrorMessage } from '@/utils/errorHandler';
 
 const { TextArea } = Input;
 
@@ -104,7 +105,7 @@ const KnowledgeEditorPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to save:', error);
-      message.error(error.response?.data?.detail || '保存失败');
+      message.error(formatErrorMessage(error, '保存失败'));
     } finally {
       setSaving(false);
     }

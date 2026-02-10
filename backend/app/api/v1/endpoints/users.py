@@ -119,7 +119,7 @@ async def create_user(
     """
     Create a new user (admin only).
     """
-    from app.core.security import get_password_hash
+    from app.core.security import PasswordManager
     
     # Check if email already exists
     result = await db.execute(select(User).where(User.email == data.email))
@@ -143,7 +143,7 @@ async def create_user(
         email=data.email,
         username=data.username,
         full_name=data.full_name,
-        password_hash=get_password_hash(data.password),
+        password_hash=PasswordManager.hash_password(data.password),
         is_active=data.is_active if data.is_active is not None else True,
         is_verified=data.is_verified if data.is_verified is not None else False,
         is_superuser=data.is_superuser if data.is_superuser is not None else False,

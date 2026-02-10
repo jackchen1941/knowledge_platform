@@ -309,7 +309,9 @@ class AuditLogger:
 
 
 # Utility functions
-def get_current_user_id(credentials: HTTPAuthorizationCredentials) -> str:
+def get_current_user_id(
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())
+) -> str:
     """Extract user ID from JWT token."""
     payload = TokenManager.verify_token(credentials.credentials)
     user_id = payload.get("sub")

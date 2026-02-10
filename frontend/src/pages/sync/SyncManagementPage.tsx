@@ -86,7 +86,7 @@ const SyncManagementPage: React.FC = () => {
   const loadDevices = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/v1/sync/devices');
+      const response = await api.get('/sync/devices');
       setDevices(response.data);
     } catch (error) {
       message.error('加载设备列表失败');
@@ -97,7 +97,7 @@ const SyncManagementPage: React.FC = () => {
 
   const loadConflicts = async () => {
     try {
-      const response = await api.get('/api/v1/sync/conflicts');
+      const response = await api.get('/sync/conflicts');
       setConflicts(response.data);
     } catch (error) {
       message.error('加载冲突列表失败');
@@ -106,7 +106,7 @@ const SyncManagementPage: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const response = await api.get('/api/v1/sync/stats');
+      const response = await api.get('/sync/stats');
       setStats(response.data);
     } catch (error) {
       console.error('加载统计失败', error);
@@ -115,7 +115,7 @@ const SyncManagementPage: React.FC = () => {
 
   const handleRegisterDevice = async (values: any) => {
     try {
-      await api.post('/api/v1/sync/devices/register', {
+      await api.post('/sync/devices/register', {
         device_name: values.device_name,
         device_type: values.device_type,
         device_id: values.device_id || `device_${Date.now()}`,
@@ -149,7 +149,7 @@ const SyncManagementPage: React.FC = () => {
     setSyncLoading(true);
     try {
       // Pull changes
-      const pullResponse = await api.post('/api/v1/sync/pull', {
+      const pullResponse = await api.post('/sync/pull', {
         device_id: deviceId,
       });
       

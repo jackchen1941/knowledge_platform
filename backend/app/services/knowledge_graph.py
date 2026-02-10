@@ -48,10 +48,11 @@ class KnowledgeGraphService:
         # Create link
         link = KnowledgeLink(
             id=str(uuid.uuid4()),
-            source_id=source_id,
-            target_id=target_id,
+            from_item_id=source_id,
+            to_item_id=target_id,
             link_type=link_type,
             description=description,
+            created_by=user_id,
             created_at=datetime.utcnow()
         )
         
@@ -67,7 +68,7 @@ class KnowledgeGraphService:
         
         result = await self.db.execute(
             select(KnowledgeLink)
-            .join(KnowledgeItem, KnowledgeLink.source_id == KnowledgeItem.id)
+            .join(KnowledgeItem, KnowledgeLink.from_item_id == KnowledgeItem.id)
             .where(
                 KnowledgeLink.id == link_id,
                 KnowledgeItem.author_id == user_id
@@ -89,7 +90,7 @@ class KnowledgeGraphService:
         knowledge_item_id: str,
         user_id: str,
         direction: str = "both"
-    ) -> List[KnowledgeLink]:
+    ) -> List[Dict[str, Any]]:
         """
         Get all links for a knowledge item.
         direction: 'outgoing', 'incoming', or 'both'
@@ -99,24 +100,41 @@ class KnowledgeGraphService:
         await self._get_item(knowledge_item_id, user_id)
         
         query = select(KnowledgeLink).options(
-            selectinload(KnowledgeLink.source_item),
-            selectinload(KnowledgeLink.target_item)
+            selectinload(KnowledgeLink.from_item),
+            selectinload(KnowledgeLink.to_item)
         )
         
         if direction == "outgoing":
-            query = query.where(KnowledgeLink.source_id == knowledge_item_id)
+            query = query.where(KnowledgeLink.from_item_id == knowledge_item_id)
         elif direction == "incoming":
-            query = query.where(KnowledgeLink.target_id == knowledge_item_id)
+            query = query.where(KnowledgeLink.to_item_id == knowledge_item_id)
         else:  # both
             query = query.where(
                 or_(
-                    KnowledgeLink.source_id == knowledge_item_id,
-                    KnowledgeLink.target_id == knowledge_item_id
+                    KnowledgeLink.from_item_id == knowledge_item_id,
+                    KnowledgeLink.to_item_id == knowledge_item_id
                 )
             )
         
         result = await self.db.execute(query)
-        return result.scalars().all()
+        links = result.scalars().all()
+        
+        # Convert to dict with titles
+        links_with_titles = []
+        for link in links:
+            link_dict = {
+                "id": link.id,
+                "source_id": link.from_item_id,
+                "target_id": link.to_item_id,
+                "link_type": link.link_type,
+                "description": link.description,
+                "source_title": link.from_item.title if link.from_item else None,
+                "target_title": link.to_item.title if link.to_item else None,
+                "created_at": link.created_at.isoformat() if link.created_at else None,
+            }
+            links_with_titles.append(link_dict)
+        
+        return links_with_titles
     
     async def get_graph_data(
         self,
@@ -177,15 +195,15 @@ class KnowledgeGraphService:
             for link in links:
                 # Add edge
                 edges.append({
-                    "id": link.id,
-                    "source": link.source_id,
-                    "target": link.target_id,
-                    "type": link.link_type,
-                    "description": link.description,
+                    "id": link["id"],
+                    "source": link["source_id"],
+                    "target": link["target_id"],
+                    "type": link["link_type"],
+                    "description": link["description"],
                 })
                 
                 # Add connected items to queue
-                other_id = link.target_id if link.source_id == item_id else link.source_id
+                other_id = link["target_id"] if link["source_id"] == item_id else link["source_id"]
                 if other_id not in visited and current_depth < depth:
                     visited.add(other_id)
                     queue.append((other_id, current_depth + 1))
@@ -230,7 +248,7 @@ class KnowledgeGraphService:
         # Get all links
         links_result = await self.db.execute(
             select(KnowledgeLink)
-            .join(KnowledgeItem, KnowledgeLink.source_id == KnowledgeItem.id)
+            .join(KnowledgeItem, KnowledgeLink.from_item_id == KnowledgeItem.id)
             .where(KnowledgeItem.author_id == user_id)
         )
         links = links_result.scalars().all()
@@ -239,8 +257,8 @@ class KnowledgeGraphService:
         edges = [
             {
                 "id": link.id,
-                "source": link.source_id,
-                "target": link.target_id,
+                "source": link.from_item_id,
+                "target": link.to_item_id,
                 "type": link.link_type,
                 "description": link.description,
             }
@@ -341,7 +359,7 @@ class KnowledgeGraphService:
         # Count total links
         links_result = await self.db.execute(
             select(KnowledgeLink)
-            .join(KnowledgeItem, KnowledgeLink.source_id == KnowledgeItem.id)
+            .join(KnowledgeItem, KnowledgeLink.from_item_id == KnowledgeItem.id)
             .where(KnowledgeItem.author_id == user_id)
         )
         total_links = len(links_result.scalars().all())
@@ -352,8 +370,8 @@ class KnowledgeGraphService:
                 KnowledgeItem.author_id == user_id,
                 KnowledgeItem.is_deleted == False,
                 ~KnowledgeItem.id.in_(
-                    select(KnowledgeLink.source_id).union(
-                        select(KnowledgeLink.target_id)
+                    select(KnowledgeLink.from_item_id).union(
+                        select(KnowledgeLink.to_item_id)
                     )
                 )
             )
@@ -400,12 +418,12 @@ class KnowledgeGraphService:
             select(KnowledgeLink).where(
                 or_(
                     and_(
-                        KnowledgeLink.source_id == source_id,
-                        KnowledgeLink.target_id == target_id
+                        KnowledgeLink.from_item_id == source_id,
+                        KnowledgeLink.to_item_id == target_id
                     ),
                     and_(
-                        KnowledgeLink.source_id == target_id,
-                        KnowledgeLink.target_id == source_id
+                        KnowledgeLink.from_item_id == target_id,
+                        KnowledgeLink.to_item_id == source_id
                     )
                 )
             )

@@ -50,7 +50,7 @@ const KnowledgeGraphPage: React.FC = () => {
       if (center) params.center_id = center;
       if (d !== undefined) params.depth = d;
 
-      const response = await api.get('/api/v1/graph', { params });
+      const response = await api.get('/graph', { params });
       setGraphData(response.data);
       renderGraph(response.data);
     } catch (error) {
@@ -62,7 +62,7 @@ const KnowledgeGraphPage: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const response = await api.get('/api/v1/graph/stats');
+      const response = await api.get('/graph/stats');
       setStats(response.data);
     } catch (error) {
       console.error('加载统计失败', error);

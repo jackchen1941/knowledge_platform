@@ -23,7 +23,7 @@ from app.schemas.knowledge_graph import (
 router = APIRouter()
 
 
-@router.post("/knowledge/{knowledge_item_id}/links", response_model=LinkResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/knowledge/{knowledge_item_id}/links", status_code=status.HTTP_201_CREATED)
 async def create_link(
     knowledge_item_id: str,
     data: LinkCreate,
@@ -39,10 +39,18 @@ async def create_link(
         data.link_type,
         data.description
     )
-    return link
+    # Convert to response format
+    return {
+        "id": link.id,
+        "source_id": link.from_item_id,
+        "target_id": link.to_item_id,
+        "link_type": link.link_type,
+        "description": link.description,
+        "created_at": link.created_at.isoformat() if link.created_at else None,
+    }
 
 
-@router.get("/knowledge/{knowledge_item_id}/links", response_model=list[LinkResponse])
+@router.get("/knowledge/{knowledge_item_id}/links")
 async def get_links(
     knowledge_item_id: str,
     direction: str = Query("both", pattern="^(outgoing|incoming|both)$"),
